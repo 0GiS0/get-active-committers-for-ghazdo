@@ -8,7 +8,8 @@
   "customizations": {
     "vscode": {
       "extensions": [
-        "mechatroner.rainbow-csv"
+        "mechatroner.rainbow-csv",
+        "shakram02.bash-beautify"
       ]
     }
   }  

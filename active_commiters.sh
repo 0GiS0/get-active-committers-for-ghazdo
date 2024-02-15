@@ -38,7 +38,7 @@ set -e
 
 ############################ Functions ##########################################
 
-function check_gum() {
+function check_if_gum_is_installed() {
     if ! command -v gum &> /dev/null && [ ! -f "/home/linuxbrew/.linuxbrew/bin/gum" ] > /dev/null 2>&1
     then
         echo "gum could not be found"
@@ -47,41 +47,43 @@ function check_gum() {
     fi
 }
 
+function check_if_required_variables_are_set() {
+    # Check if this variables are already set in the .env file
+    if [ -f .env ]; then
+        export $(cat .env | xargs)
+    fi
+
+    # If the variables are not set, ask for them
+
+    if [ -z "$PAT" ]; then
+        
+        gum style \
+        --foreground 212 --border-foreground 212 \
+        --align center --width 50 --margin "1 2" --padding "2 4" \
+        'Please provide the following information:'
+
+        # Required parameters
+        ORG_NAME=$(gum input --header="Enter your Azure DevOps Organization Name" )
+        PAT=$(gum input --header="Enter your Personal Access Token" --password)    
+
+        # Save the info in an .env file
+        echo "PAT=$PAT" > .env
+        echo "ORG_NAME=$ORG_NAME" >> .env
+    fi
+
+}
 
 ############################ Variables ##########################################
 
 ############################ Main ###############################################
 
-# Check if gum is installed
-check_gum
+check_if_gum_is_installed
+check_if_required_variables_are_set
 
 gum style \
 	--foreground 212 --border-foreground 212 --border double \
 	--align center --width 50 --margin "1 2" --padding "2 4" \
 	'Welcome to GHAzDO investigation!' 'Check the active committers in your Azure DevOps organization, project or repository.'
-
-# Check if this variables are already set in the .env file
-if [ -f .env ]; then
-    export $(cat .env | xargs)
-fi
-
-# If the variables are not set, ask for them
-
-if [ -z "$PAT" ]; then
-    
-    gum style \
-    --foreground 212 --border-foreground 212 \
-    --align center --width 50 --margin "1 2" --padding "2 4" \
-    'Please provide the following information:'
-
-    # Required parameters
-    ORG_NAME=$(gum input --header="Enter your Azure DevOps Organization Name" )
-    PAT=$(gum input --header="Enter your Personal Access Token" --password)    
-
-    # Save the info in an .env file
-    echo "PAT=$PAT" > .env
-    echo "ORG_NAME=$ORG_NAME" >> .env
-fi
 
 gum style \
     --foreground 212 --border-foreground 212 \
@@ -123,7 +125,7 @@ elif [ "$CHOICE" = "Project" ]; then
         PROJECT_NAME=$(echo $i | jq -r '.name')
         PROJECT_ID=$(echo $i | jq -r '.id')
         
-        gum log "Getting meter usage estimate for $PROJECT_NAME..."
+        gum log "📊 Getting meter usage estimate for $PROJECT_NAME..."
 
         # Get the meter usage estimate for the project
         ACTIVE_COMMITTERS=$(curl -u :$PAT -X GET \
@@ -146,27 +148,29 @@ else
             -H "Accept: application/json" \
             "https://dev.azure.com/$ORG_NAME/_apis/projects?api-version=7.1-preview.1" | jq '.')
     
-    echo "Project Id, Project Name, Active Commiters" > projects_active_commiters.csv
+    echo "Project Id, Project Name" > projects.csv
+
+    gum format --theme="pink"  "Getting projects in **$ORG_NAME**"
 
     echo $PROJECTS | jq -c '.value[]'   | while read i; do
 
         # Get the project name and id
         PROJECT_NAME=$(echo $i | jq -r '.name')
         PROJECT_ID=$(echo $i | jq -r '.id')
-        # Get the meter usage estimate for the project
-        ACTIVE_COMMITTERS=$(curl -u :$PAT -X GET \
-        -s \
-        -H "Accept: application/json" \
-        "https://advsec.dev.azure.com/$ORG_NAME/_apis/management/meterUsageEstimate?api-version=7.2-preview.1&projectIds=$PROJECT_ID" | jq '.count')
+        # # Get the meter usage estimate for the project
+        # ACTIVE_COMMITTERS=$(curl -u :$PAT -X GET \
+        # -s \
+        # -H "Accept: application/json" \
+        # "https://advsec.dev.azure.com/$ORG_NAME/_apis/management/meterUsageEstimate?api-version=7.2-preview.1&projectIds=$PROJECT_ID" | jq '.count')
 
         # Create a temp file to store the data using Project Id, Project Name, Active Commiters format        
-        echo "$PROJECT_ID, $PROJECT_NAME, $ACTIVE_COMMITTERS" >> projects_active_commiters.csv
+        echo "$PROJECT_ID, $PROJECT_NAME" >> projects.csv
     done
 
     gum format --theme="pink" "👇🏻 Please **choose a project** to get the active committers for its repositories"
-    PROJECT_ID=$(gum table < projects_active_commiters.csv -w 40,40,20 --height 20 | cut -d ',' -f 1)
+    PROJECT_ID=$(gum table < projects.csv -w 40,40,20 --height 20 | cut -d ',' -f 1)
 
-    echo "Project ID chosen: $PROJECT_ID"
+    # echo "Project ID chosen: $PROJECT_ID"
 
     PROJECT_NAME=$(gum spin --spinner dot --title "Getting projects info..." --show-output -- curl -u :$PAT -X GET \
             -H "Accept: application/json" \

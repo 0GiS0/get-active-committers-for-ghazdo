@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/bash
 ################################################################################
 #                              scriptTemplate                                  #
 #                                                                              #
@@ -38,15 +38,22 @@ set -e
 
 ############################ Functions ##########################################
 
+function check_gum() {
+    if ! command -v gum &> /dev/null && [ ! -f "/home/linuxbrew/.linuxbrew/bin/gum" ] > /dev/null 2>&1
+    then
+        echo "gum could not be found"
+        echo "Installing gum..."
+        brew install gum    
+    fi
+}
 
+
+############################ Variables ##########################################
+
+############################ Main ###############################################
 
 # Check if gum is installed
-if ! command -v gum &> /dev/null && [ ! -f "/home/linuxbrew/.linuxbrew/bin/gum" ] > /dev/null 2>&1
-then
-    echo "gum could not be found"
-    echo "Installing gum..."
-    brew install gum    
-fi
+check_gum
 
 gum style \
 	--foreground 212 --border-foreground 212 --border double \

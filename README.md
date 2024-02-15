@@ -1,7 +1,9 @@
-# Create an interactive terminal usign Gum
+# Get Azure DevOps Active Committers
 
-# 1. Install Gum
-brew install gum
+This script will get the active committers from an Azure DevOps organization
 
-# 2. Create a new Gum project
-gum new my_project
+## How to run it
+
+```bash
+./active_commiters.sh
+```

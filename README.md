@@ -6,6 +6,16 @@ This is how it works:
 
 <img src="images/demo.gif" />
 
+## Pre-requisites
+
+You need a Personal Access Token (PAT) with the following permissions:
+
+- `Advanced Security (Read)`
+- `Code (Read)`
+- `Project and Team (Read)`
+
+<img src="images/PAT scopes.png" />
+
 ## How to run it
 
 The easiest way is to open this repo in GitHub Codespaces:

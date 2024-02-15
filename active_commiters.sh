@@ -36,6 +36,9 @@
 
 set -e
 
+############################ Variables ##########################################
+TEMP_FOLDER="tmp/ghazdo"
+
 ############################ Functions ##########################################
 
 function check_if_gum_is_installed() {
@@ -73,12 +76,19 @@ function check_if_required_variables_are_set() {
 
 }
 
-############################ Variables ##########################################
+function createTmpFolder() {
+    if [ ! -d "$TEMP_FOLDER" ]; then
+        mkdir -p $TEMP_FOLDER
+    fi
+}
 
 ############################ Main ###############################################
 
 check_if_gum_is_installed
 check_if_required_variables_are_set
+createTmpFolder
+
+### Welcome message
 
 gum style \
 	--foreground 212 --border-foreground 212 --border double \
@@ -93,7 +103,7 @@ gum style \
 CHOICE=$(gum choose "Organization" "Project" "Repository")
 
 if [ "$CHOICE" = "Organization" ]; then
-    gum format --theme="pink" "You chose **Organization** 🏢"
+    gum format --theme="pink" "You chose $(gum style --bold --foreground 212 "Organization") 🏢"
 
     # Org Meter Usage Estimate
     COUNT=$(gum spin --spinner line --title "Investigating $ORG_NAME..." --show-output -- curl -u :$PAT -X GET \
@@ -101,11 +111,11 @@ if [ "$CHOICE" = "Organization" ]; then
             -H "Accept: application/json" \
             "https://advsec.dev.azure.com/$ORG_NAME/_apis/management/meterUsageEstimate?api-version=7.2-preview.1" | jq '.count')
     
-    gum format --theme="pink" "You have **$COUNT active committers** 🎉 in **$ORG_NAME**"
+    gum format --theme="pink" "You have $(gum style --bold --foreground 212 "$COUNT active committers") 🎉 in $(gum style --bold --foreground 212 "$ORG_NAME")"
 
 elif [ "$CHOICE" = "Project" ]; then
     
-    gum format --theme="pink" "You chose **Project** 📁"
+    gum format --theme="pink" "You chose $(gum style --bold --foreground 212 "Project") 📁"
 
     # Get the list of projects in the organization
     PROJECTS=$(gum spin --spinner dot --title "Getting projects in $ORG_NAME..." --show-output -- curl -u :$PAT -X GET \
@@ -114,9 +124,9 @@ elif [ "$CHOICE" = "Project" ]; then
 
 
     # Print how many projects you have in the organization
-    gum format --theme="pink"  "You have **$(echo $PROJECTS | jq '.count') projects** ✨ in **$ORG_NAME**"
+    gum format --theme="pink"  "You have $(gum style --bold --foreground 212 "$(echo $PROJECTS | jq '.count') projects") ✨ in $(gum style --bold --foreground 212 "$ORG_NAME")"
     
-    echo "Project Id, Project Name, Active Commiters" > projects_active_commiters.csv
+    echo "Project Id, Project Name, Active Committers" > $TEMP_FOLDER/projects_active_committers.csv
 
     # Iterate over the projects and get the meter usage estimate for each one
     echo $PROJECTS | jq -c '.value[]'   | while read i; do        
@@ -133,24 +143,23 @@ elif [ "$CHOICE" = "Project" ]; then
         -H "Accept: application/json" \
         "https://advsec.dev.azure.com/$ORG_NAME/_apis/management/meterUsageEstimate?api-version=7.2-preview.1&projectIds=$PROJECT_ID" | jq '.count')
 
-        # Create a temp file to store the data using Project Id, Project Name, Active Commiters format        
-        echo "$PROJECT_ID, $PROJECT_NAME, $ACTIVE_COMMITTERS" >> projects_active_commiters.csv
+        echo "$PROJECT_ID, $PROJECT_NAME, $ACTIVE_COMMITTERS" >> $TEMP_FOLDER/projects_active_committers.csv
     done
 
     clear
-    gum table < projects_active_commiters.csv -w 40,40,20 --height 20 --print --border.foreground 99 --header.foreground 212 | cut -d ',' -f 1
+    gum table < $TEMP_FOLDER/projects_active_committers.csv -w 40,40,20 --height 20 --print --border.foreground 99 --header.foreground 212 | cut -d ',' -f 1
 
 else
-    gum format --theme="pink" "You chose **Repository** 📁"
+    gum format --theme="pink" "You chose $(gum style --bold --foreground 212 "Repository") 📁"
 
     # Get the list of projects in the organization
     PROJECTS=$(gum spin --spinner dot --title "Getting projects in $ORG_NAME..." --show-output -- curl -u :$PAT -X GET \
             -H "Accept: application/json" \
             "https://dev.azure.com/$ORG_NAME/_apis/projects?api-version=7.1-preview.1" | jq '.')
     
-    echo "Project Id, Project Name" > projects.csv
+    echo "Project Id, Project Name" > $TEMP_FOLDER/projects.csv
 
-    gum format --theme="pink"  "Getting projects in **$ORG_NAME**"
+    gum format --theme="pink"  "Getting projects in $(gum style --bold --foreground 212 "$ORG_NAME")"
 
     echo $PROJECTS | jq -c '.value[]'   | while read i; do
 
@@ -163,12 +172,11 @@ else
         # -H "Accept: application/json" \
         # "https://advsec.dev.azure.com/$ORG_NAME/_apis/management/meterUsageEstimate?api-version=7.2-preview.1&projectIds=$PROJECT_ID" | jq '.count')
 
-        # Create a temp file to store the data using Project Id, Project Name, Active Commiters format        
-        echo "$PROJECT_ID, $PROJECT_NAME" >> projects.csv
+        echo "$PROJECT_ID, $PROJECT_NAME" >> $TEMP_FOLDER/projects.csv
     done
 
-    gum format --theme="pink" "👇🏻 Please **choose a project** to get the active committers for its repositories"
-    PROJECT_ID=$(gum table < projects.csv -w 40,40,20 --height 20 | cut -d ',' -f 1)
+    gum format --theme="pink" "👇🏻 Please $(gum style --bold --foreground 212 "choose a project") to get the active committers for its repositories"
+    PROJECT_ID=$(gum table < $TEMP_FOLDER/projects.csv -w 40,40,20 --height 20 | cut -d ',' -f 1)
 
     # echo "Project ID chosen: $PROJECT_ID"
 
@@ -177,8 +185,8 @@ else
             "https://dev.azure.com/$ORG_NAME/_apis/projects/$PROJECT_ID?api-version=7.1-preview.4" | jq -r '.name')
 
     
-    gum format --theme="pink" "You chose **$PROJECT_NAME** 📁"
-    echo "Repo Id, Name, Active Commiters" > "${PROJECT_ID}_active_commiters_by_repo.csv"
+    gum format --theme="pink" "You chose $(gum style --foreground 212 "$PROJECT_NAME") 📁"
+    echo "Repo Id, Name, Active Committers" > "$TEMP_FOLDER/${PROJECT_ID}_active_committers_by_repo.csv"
 
     # Get the list of repositories in the project
    REPOS=$(gum spin --spinner dot --title "Getting repositories..." --show-output -- curl -u :$PAT -X GET \
@@ -186,7 +194,7 @@ else
             "https://dev.azure.com/$ORG_NAME/$PROJECT_ID/_apis/git/repositories/?api-version=4.1" | jq '.')
 
     
-    gum format --theme="pink" "You have $(echo "$REPOS" | jq '.count') repositories ✨ in **$PROJECT_NAME**"    
+    gum format --theme="pink" "You have $(echo "$REPOS" | jq '.count') repositories ✨ in $(gum style --bold --foreground 212 "$PROJECT_NAME")"
     
     # Iterate over the repositories and get the meter usage estimate for each one
     echo $REPOS | jq -c '.value[]'   | while read i; do
@@ -203,10 +211,10 @@ else
         -H "Accept: application/json" \
         "https://advsec.dev.azure.com/$ORG_NAME/_apis/management/meterUsageEstimate?api-version=7.2-preview.1&projectIds=$PROJECT_ID&repositoryIds=$REPO_ID" | jq '.count')
 
-        # Create a temp file to store the data using Repository Id, Repository Name, Active Commiters format        
-        echo "$REPO_ID, $REPO_NAME, $ACTIVE_COMMITTERS" >> "${PROJECT_ID}_active_commiters_by_repo.csv"
+        echo "$REPO_ID, $REPO_NAME, $ACTIVE_COMMITTERS" >> "$TEMP_FOLDER/${PROJECT_ID}_active_committers_by_repo.csv"
     done
 
-    gum table < "${PROJECT_ID}_active_commiters_by_repo.csv" -w 40,40,20 --height 20 --print --border.foreground 99 --header.foreground 212 | cut -d ',' -f 1
+    clear
+    gum table < "$TEMP_FOLDER/${PROJECT_ID}_active_committers_by_repo.csv" -w 40,40,20 --height 20 --print --border.foreground 99 --header.foreground 212 | cut -d ',' -f 1
 
 fi

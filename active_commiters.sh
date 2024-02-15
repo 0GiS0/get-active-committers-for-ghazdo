@@ -119,7 +119,21 @@ else
     # echo "Repository Id, Repository Name, Active Commiters" > repo_active_commiters.csv
 
     # Iterate over the repositories and get the meter usage estimate for each one
+    echo $REPOS | jq -c '.value[]'   | while read i; do
 
+        # Get the repository name and id
+        REPO_NAME=$(echo $i | jq -r '.name')
+        REPO_ID=$(echo $i | jq -r '.id')
+        # Get the meter usage estimate for the repository
+        ACTIVE_COMMITTERS=$(curl -u :$PAT -X GET \
+        -s \
+        -H "Accept: application/json" \
+        "https://advsec.dev.azure.com/$ORG_NAME/_apis/management/meterUsageEstimate?api-version=7.2-preview.1&projectIds=$PROJECT_ID&repositoryIds=$REPO_ID" | jq '.count')
 
+        # Create a temp file to store the data using Repository Id, Repository Name, Active Commiters format        
+        echo "$REPO_ID, $REPO_NAME, $ACTIVE_COMMITTERS" >> "${PROJECT_ID}_active_commiters_by_repo.csv"
+    done
+
+    gum table < "${PROJECT_ID}_active_commiters_by_repo.csv" -w 40,40,20 --height 20 | cut -d ',' -f 1
 
 fi

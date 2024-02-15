@@ -96,7 +96,7 @@ if [ "$CHOICE" = "Organization" ]; then
     gum format --theme="pink" "You chose **Organization** 🏢"
 
     # Org Meter Usage Estimate
-    COUNT=$(gum spin --spinner dot --title "Investigating $ORG_NAME..." --show-output -- curl -u :$PAT -X GET \
+    COUNT=$(gum spin --spinner line --title "Investigating $ORG_NAME..." --show-output -- curl -u :$PAT -X GET \
             -s \
             -H "Accept: application/json" \
             "https://advsec.dev.azure.com/$ORG_NAME/_apis/management/meterUsageEstimate?api-version=7.2-preview.1" | jq '.count')
@@ -138,7 +138,7 @@ elif [ "$CHOICE" = "Project" ]; then
     done
 
     clear
-    gum table < projects_active_commiters.csv -w 40,40,20 --height 20 | cut -d ',' -f 1
+    gum table < projects_active_commiters.csv -w 40,40,20 --height 20 --print --border.foreground 99 --header.foreground 212 | cut -d ',' -f 1
 
 else
     gum format --theme="pink" "You chose **Repository** 📁"

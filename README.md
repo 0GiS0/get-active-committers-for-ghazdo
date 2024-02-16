@@ -1,6 +1,6 @@
 # Get Azure DevOps Active Committers
 
-This script will get the active committers from an Azure DevOps organization.
+This script gets the active committers from an Azure DevOps organization.
 
 This is how it works:
 

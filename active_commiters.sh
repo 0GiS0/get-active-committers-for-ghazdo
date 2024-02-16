@@ -141,7 +141,7 @@ elif [ "$CHOICE" = "Project" ]; then
         ACTIVE_COMMITTERS=$(curl -u :$PAT -X GET \
         -s \
         -H "Accept: application/json" \
-        "https://advsec.dev.azure.com/$ORG_NAME/_apis/management/meterUsageEstimate?api-version=7.2-preview.1&projectIds=$PROJECT_ID" | jq '.count')
+        "https://advsec.dev.azure.com/$ORG_NAME/$PROJECT_ID/_apis/management/meterUsageEstimate?api-version=7.2-preview.1" | jq '.count')
 
         echo "$PROJECT_ID, $PROJECT_NAME, $ACTIVE_COMMITTERS" >> $TEMP_FOLDER/projects_active_committers.csv
     done
@@ -170,7 +170,7 @@ else
         # ACTIVE_COMMITTERS=$(curl -u :$PAT -X GET \
         # -s \
         # -H "Accept: application/json" \
-        # "https://advsec.dev.azure.com/$ORG_NAME/_apis/management/meterUsageEstimate?api-version=7.2-preview.1&projectIds=$PROJECT_ID" | jq '.count')
+        # "https://advsec.dev.azure.com/$ORG_NAME/$PROJECT_ID/_apis/management/meterUsageEstimate?api-version=7.2-preview.1 | jq '.count')
 
         echo "$PROJECT_ID, $PROJECT_NAME" >> $TEMP_FOLDER/projects.csv
     done
@@ -209,7 +209,7 @@ else
         ACTIVE_COMMITTERS=$(curl -u :$PAT -X GET \
         -s \
         -H "Accept: application/json" \
-        "https://advsec.dev.azure.com/$ORG_NAME/_apis/management/meterUsageEstimate?api-version=7.2-preview.1&projectIds=$PROJECT_ID&repositoryIds=$REPO_ID" | jq '.count')
+        "https://advsec.dev.azure.com/$ORG_NAME/$PROJECT_ID/_apis/management/repositories/$REPO_ID/meterUsageEstimate?api-version=7.2-preview.1" | jq '.count')
 
         echo "$REPO_ID, $REPO_NAME, $ACTIVE_COMMITTERS" >> "$TEMP_FOLDER/${PROJECT_ID}_active_committers_by_repo.csv"
     done

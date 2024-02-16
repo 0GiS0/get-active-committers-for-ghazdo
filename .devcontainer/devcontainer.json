@@ -9,7 +9,12 @@
     "vscode": {
       "extensions": [
         "mechatroner.rainbow-csv",
-        "shakram02.bash-beautify"
+        "shakram02.bash-beautify",
+        "GitHub.copilot",
+        "GitHub.vscode-pull-request-github",
+        "GitHub.copilot-chat",
+        "github.vscode-github-actions",
+        "bierner.markdown-preview-github-styles"
       ]
     }
   }  

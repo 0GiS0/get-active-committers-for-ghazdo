@@ -20,7 +20,7 @@ You need a Personal Access Token (PAT) with the following permissions:
 
 The easiest way is to open this repo in GitHub Codespaces:
 
-[![Open in GitHub Codespaces](https://github.com/codespaces/badge.svg)](https://codespaces.new/0gis0/get-a)
+[![Open in GitHub Codespaces](https://github.com/codespaces/badge.svg)](https://codespaces.new/0gis0/get-active-committers-for-ghazdo)
 
 Or in a dev container in your local machine.
 

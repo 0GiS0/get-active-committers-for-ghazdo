@@ -166,12 +166,7 @@ else
         # Get the project name and id
         PROJECT_NAME=$(echo $i | jq -r '.name')
         PROJECT_ID=$(echo $i | jq -r '.id')
-        # # Get the meter usage estimate for the project
-        # ACTIVE_COMMITTERS=$(curl -u :$PAT -X GET \
-        # -s \
-        # -H "Accept: application/json" \
-        # "https://advsec.dev.azure.com/$ORG_NAME/$PROJECT_ID/_apis/management/meterUsageEstimate?api-version=7.2-preview.1 | jq '.count')
-
+ 
         echo "$PROJECT_ID, $PROJECT_NAME" >> $TEMP_FOLDER/projects.csv
     done
 
@@ -183,8 +178,6 @@ else
 
     gum format --theme="pink" "👇🏻 Please $(gum style --bold --foreground 212 "choose a project") to get the active committers for its repositories"
     PROJECT_ID=$(gum table < $TEMP_FOLDER/projects.csv -w 40,40,20 --height 20 | cut -d ',' -f 1)
-
-    # echo "Project ID chosen: $PROJECT_ID"
 
     PROJECT_NAME=$(gum spin --spinner dot --title "Getting projects info..." --show-output -- curl -u :$PAT -X GET \
             -H "Accept: application/json" \

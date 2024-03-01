@@ -157,9 +157,9 @@ else
             -H "Accept: application/json" \
             "https://dev.azure.com/$ORG_NAME/_apis/projects?api-version=7.1-preview.1" | jq '.')
     
-    echo "Project Id, Project Name" > $TEMP_FOLDER/projects.csv
-
     gum format --theme="pink"  "Getting projects in $(gum style --bold --foreground 212 "$ORG_NAME")"
+
+    rm -f $TEMP_FOLDER/projects.csv
 
     echo $PROJECTS | jq -c '.value[]'   | while read i; do
 
@@ -174,6 +174,12 @@ else
 
         echo "$PROJECT_ID, $PROJECT_NAME" >> $TEMP_FOLDER/projects.csv
     done
+
+    # Order csv by project name
+    sort -t ',' -k 2 $TEMP_FOLDER/projects.csv -o $TEMP_FOLDER/projects.csv
+
+    # Add header to the csv
+    echo "Project Id, Project Name" | cat - $TEMP_FOLDER/projects.csv > temp && mv temp $TEMP_FOLDER/projects.csv
 
     gum format --theme="pink" "👇🏻 Please $(gum style --bold --foreground 212 "choose a project") to get the active committers for its repositories"
     PROJECT_ID=$(gum table < $TEMP_FOLDER/projects.csv -w 40,40,20 --height 20 | cut -d ',' -f 1)

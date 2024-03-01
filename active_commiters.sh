@@ -128,6 +128,8 @@ elif [ "$CHOICE" = "Project" ]; then
     
     echo "Project Id, Project Name, Active Committers" > $TEMP_FOLDER/projects_active_committers.csv
 
+    echo $PROJECTS > projects.json
+
     # Iterate over the projects and get the meter usage estimate for each one
     echo $PROJECTS | jq -c '.value[]'   | while read i; do        
 
@@ -136,6 +138,11 @@ elif [ "$CHOICE" = "Project" ]; then
         PROJECT_ID=$(echo $i | jq -r '.id')
         
         gum log "📊 Getting meter usage estimate for $PROJECT_NAME..."
+
+        # curl -u :$PAT -X GET \
+        # -s \
+        # -H "Accept: application/json" \
+        # "https://advsec.dev.azure.com/$ORG_NAME/$PROJECT_ID/_apis/management/meterUsageEstimate?api-version=7.2-preview.1" > "$TEMP_FOLDER/$PROJECT_NAME.json"
 
         # Get the meter usage estimate for the project
         ACTIVE_COMMITTERS=$(curl -u :$PAT -X GET \
@@ -191,7 +198,6 @@ else
    REPOS=$(gum spin --spinner dot --title "Getting repositories..." --show-output -- curl -u :$PAT -X GET \
             -H "Accept: application/json" \
             "https://dev.azure.com/$ORG_NAME/$PROJECT_ID/_apis/git/repositories/?api-version=4.1" | jq '.')
-
     
     gum format --theme="pink" "You have $(echo "$REPOS" | jq '.count') repositories ✨ in $(gum style --bold --foreground 212 "$PROJECT_NAME")"
     

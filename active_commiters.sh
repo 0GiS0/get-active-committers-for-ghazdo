@@ -38,6 +38,7 @@ set -e
 
 ############################ Variables ##########################################
 TEMP_FOLDER="tmp/ghazdo"
+CHOICE=""
 
 ############################ Functions ##########################################
 
@@ -138,6 +139,16 @@ function showMessage(){
 
 }
 
+function showMenu(){
+
+    gum style \
+    --foreground 212 --border-foreground 212 \
+    --align center --width 50 --margin "1 2" --padding "2 4" \
+    'Please choose one of the following options:'
+
+    CHOICE=$(gum choose "Organization" "Project" "Repository" "Change organization" "Exit")
+}
+
 ############################ Main ###############################################
 
 check_if_gum_is_installed
@@ -148,162 +159,172 @@ createTmpFolder
 
 showTitle 'Welcome to GHAzDO investigation!' 'Check the active committers in your Azure DevOps organization, project or repository.'
 
-showMessage "At which level do you want to get the active committers?"
+while true; do
+    
+    showMenu
 
-CHOICE=$(gum choose "Organization" "Project" "Repository" "Active Committers names" "Change organization" "Exit")
+    if [ "$CHOICE" = "Organization" ]; then
+        gum format --theme="pink" "You chose $(gum style --bold --foreground 212 "Organization") 🏢"
 
-if [ "$CHOICE" = "Organization" ]; then
-    gum format --theme="pink" "You chose $(gum style --bold --foreground 212 "Organization") 🏢"
+        # Org Meter Usage Estimate
+        COUNT=$(gum spin --spinner line --title "Investigating $ORG_NAME..." --show-output -- curl -u :$PAT -X GET \
+                -s \
+                -H "Accept: application/json" \
+                "https://advsec.dev.azure.com/$ORG_NAME/_apis/management/meterUsageEstimate?api-version=7.2-preview.1" | jq '.count')
+        
+        gum format --theme="pink" "You have $(gum style --bold --foreground 212 "$COUNT active committers") 🎉 in $(gum style --bold --foreground 212 "$ORG_NAME")"
 
-    # Org Meter Usage Estimate
-    COUNT=$(gum spin --spinner line --title "Investigating $ORG_NAME..." --show-output -- curl -u :$PAT -X GET \
+    elif [ "$CHOICE" = "Project" ]; then
+        
+        gum format --theme="pink" "You chose $(gum style --bold --foreground 212 "Project") 📁"
+
+        # Get the list of projects in the organization
+        PROJECTS=$(gum spin --spinner dot --title "Getting projects in $ORG_NAME..." --show-output -- curl -u :$PAT -X GET \
+                -H "Accept: application/json" \
+                "https://dev.azure.com/$ORG_NAME/_apis/projects?api-version=7.1-preview.1" | jq '.')
+
+
+        # Print how many projects you have in the organization
+        gum format --theme="pink"  "You have $(gum style --bold --foreground 212 "$(echo $PROJECTS | jq '.count') projects") ✨ in $(gum style --bold --foreground 212 "$ORG_NAME")"
+        
+        echo "Project Id, Project Name, Active Committers, Enable GHAzDO on newly created repositories " > $TEMP_FOLDER/projects_active_committers.csv
+
+        echo $PROJECTS > projects.json
+
+        # Iterate over the projects and get the meter usage estimate for each one
+        echo $PROJECTS | jq -c '.value[]'   | while read i; do        
+
+            # Get the project name and id
+            PROJECT_NAME=$(echo $i | jq -r '.name')
+            PROJECT_ID=$(echo $i | jq -r '.id')
+            
+            gum log "📊 Getting meter usage estimate for $PROJECT_NAME..."
+
+            curl -u :$PAT -X GET \
             -s \
             -H "Accept: application/json" \
-            "https://advsec.dev.azure.com/$ORG_NAME/_apis/management/meterUsageEstimate?api-version=7.2-preview.1" | jq '.count')
-    
-    gum format --theme="pink" "You have $(gum style --bold --foreground 212 "$COUNT active committers") 🎉 in $(gum style --bold --foreground 212 "$ORG_NAME")"
+            "https://advsec.dev.azure.com/$ORG_NAME/$PROJECT_ID/_apis/management/meterUsageEstimate?api-version=7.2-preview.1" > "$TEMP_FOLDER/$PROJECT_NAME.json"
 
-elif [ "$CHOICE" = "Project" ]; then
-    
-    gum format --theme="pink" "You chose $(gum style --bold --foreground 212 "Project") 📁"
-
-    # Get the list of projects in the organization
-    PROJECTS=$(gum spin --spinner dot --title "Getting projects in $ORG_NAME..." --show-output -- curl -u :$PAT -X GET \
+            # Get the meter usage estimate for the project
+            ACTIVE_COMMITTERS=$(curl -u :$PAT -X GET \
+            -s \
             -H "Accept: application/json" \
-            "https://dev.azure.com/$ORG_NAME/_apis/projects?api-version=7.1-preview.1" | jq '.')
+            "https://advsec.dev.azure.com/$ORG_NAME/$PROJECT_ID/_apis/management/meterUsageEstimate?api-version=7.2-preview.1" | jq '.count')
 
+            # curl -u :$PAT -X GET \
+            # -s \
+            # -H "Accept: application/json" \
+            # GET https://advsec.dev.azure.com/$ORG_NAME/$PROJECT_ID/_apis/management/enablement?api-version=7.2-preview.1 > "$TEMP_FOLDER/${PROJECT_NAME}_enablement.json"
 
-    # Print how many projects you have in the organization
-    gum format --theme="pink"  "You have $(gum style --bold --foreground 212 "$(echo $PROJECTS | jq '.count') projects") ✨ in $(gum style --bold --foreground 212 "$ORG_NAME")"
-    
-    echo "Project Id, Project Name, Active Committers, Enable GHAzDO on newly created repositories " > $TEMP_FOLDER/projects_active_committers.csv
+            # Check if GHAzDO is enabled
+            ENABLE_ON_CREATE=$(curl -u :$PAT -X GET \
+            -s \
+            -H "Accept: application/json" \
+            GET https://advsec.dev.azure.com/$ORG_NAME/$PROJECT_ID/_apis/management/enablement?api-version=7.2-preview.1 | jq '.enableOnCreate')
 
-    echo $PROJECTS > projects.json
+            # If true then set ✅, if false then set ❌
+            if [ "$ENABLE_ON_CREATE" = "true" ]; then
+                ENABLE_ON_CREATE="✅"
+            else
+                ENABLE_ON_CREATE="❌"
+            fi
+            
+            echo "$PROJECT_ID, $PROJECT_NAME, $ACTIVE_COMMITTERS, $ENABLE_ON_CREATE" >> $TEMP_FOLDER/projects_active_committers.csv
+        done
 
-    # Iterate over the projects and get the meter usage estimate for each one
-    echo $PROJECTS | jq -c '.value[]'   | while read i; do        
+        clear
+        gum table < $TEMP_FOLDER/projects_active_committers.csv -w 40,40,20 --height 20 --print --border.foreground 99 --header.foreground 212 | cut -d ',' -f 1
 
-        # Get the project name and id
-        PROJECT_NAME=$(echo $i | jq -r '.name')
-        PROJECT_ID=$(echo $i | jq -r '.id')
         
-        gum log "📊 Getting meter usage estimate for $PROJECT_NAME..."
-
-        curl -u :$PAT -X GET \
-        -s \
-        -H "Accept: application/json" \
-        "https://advsec.dev.azure.com/$ORG_NAME/$PROJECT_ID/_apis/management/meterUsageEstimate?api-version=7.2-preview.1" > "$TEMP_FOLDER/$PROJECT_NAME.json"
-
-        # Get the meter usage estimate for the project
-        ACTIVE_COMMITTERS=$(curl -u :$PAT -X GET \
-        -s \
-        -H "Accept: application/json" \
-        "https://advsec.dev.azure.com/$ORG_NAME/$PROJECT_ID/_apis/management/meterUsageEstimate?api-version=7.2-preview.1" | jq '.count')
-
-        curl -u :$PAT -X GET \
-        -s \
-        -H "Accept: application/json" \
-        GET https://advsec.dev.azure.com/$ORG_NAME/$PROJECT_ID/_apis/management/enablement?api-version=7.2-preview.1 > "$TEMP_FOLDER/${PROJECT_NAME}_enablement.json"
-
-        # Check if GHAzDO is enabled
-        ENABLE_ON_CREATE=$(curl -u :$PAT -X GET \
-        -s \
-        -H "Accept: application/json" \
-        GET https://advsec.dev.azure.com/$ORG_NAME/$PROJECT_ID/_apis/management/enablement?api-version=7.2-preview.1 | jq '.enableOnCreate')
-
-        # If true then set ✅, if false then set ❌
-        if [ "$ENABLE_ON_CREATE" = "true" ]; then
-            ENABLE_ON_CREATE="✅"
-        else
-            ENABLE_ON_CREATE="❌"
-        fi
         
-        echo "$PROJECT_ID, $PROJECT_NAME, $ACTIVE_COMMITTERS, $ENABLE_ON_CREATE" >> $TEMP_FOLDER/projects_active_committers.csv
-    done
 
-    clear
-    gum table < $TEMP_FOLDER/projects_active_committers.csv -w 40,40,20 --height 20 --print --border.foreground 99 --header.foreground 212 | cut -d ',' -f 1
+    elif [ "$CHOICE" = "Repository" ]; then
 
+        gum format --theme="pink" "You chose $(gum style --bold --foreground 212 "Repository") 📁"
 
+        # Get the list of projects in the organization
+        PROJECTS=$(gum spin --spinner dot --title "Getting projects in $ORG_NAME..." --show-output -- curl -u :$PAT -X GET \
+                -H "Accept: application/json" \
+                "https://dev.azure.com/$ORG_NAME/_apis/projects?api-version=7.1-preview.1" | jq '.')
+        
+        gum format --theme="pink"  "Getting projects in $(gum style --bold --foreground 212 "$ORG_NAME")"
 
-elif [ "$CHOICE" = "Repository" ]; then
+        rm -f $TEMP_FOLDER/projects.csv
 
-    gum format --theme="pink" "You chose $(gum style --bold --foreground 212 "Repository") 📁"
+        echo $PROJECTS | jq -c '.value[]'   | while read i; do
 
-    # Get the list of projects in the organization
-    PROJECTS=$(gum spin --spinner dot --title "Getting projects in $ORG_NAME..." --show-output -- curl -u :$PAT -X GET \
+            # Get the project name and id
+            PROJECT_NAME=$(echo $i | jq -r '.name')
+            PROJECT_ID=$(echo $i | jq -r '.id')
+    
+            echo "$PROJECT_ID, $PROJECT_NAME" >> $TEMP_FOLDER/projects.csv
+        done
+
+        # Order csv by project name
+        sort -t ',' -k 2 $TEMP_FOLDER/projects.csv -o $TEMP_FOLDER/projects.csv
+
+        # Add header to the csv
+        echo "Project Id, Project Name" | cat - $TEMP_FOLDER/projects.csv > temp && mv temp $TEMP_FOLDER/projects.csv
+
+        gum format --theme="pink" "👇🏻 Please $(gum style --bold --foreground 212 "choose a project") to get the active committers for its repositories"
+        PROJECT_ID=$(gum table < $TEMP_FOLDER/projects.csv -w 40,40,20 --height 20 | cut -d ',' -f 1)
+
+        PROJECT_NAME=$(gum spin --spinner dot --title "Getting projects info..." --show-output -- curl -u :$PAT -X GET \
+                -H "Accept: application/json" \
+                "https://dev.azure.com/$ORG_NAME/_apis/projects/$PROJECT_ID?api-version=7.1-preview.4" | jq -r '.name')
+
+        
+        gum format --theme="pink" "You chose $(gum style --foreground 212 "$PROJECT_NAME") 📁"
+        echo "Repo Id, Name, Active Committers" > "$TEMP_FOLDER/${PROJECT_ID}_active_committers_by_repo.csv"
+
+        # Get the list of repositories in the project
+        REPOS=$(gum spin --spinner dot --title "Getting repositories..." --show-output -- curl -u :$PAT -X GET \
+                -H "Accept: application/json" \
+                "https://dev.azure.com/$ORG_NAME/$PROJECT_ID/_apis/git/repositories/?api-version=4.1" | jq '.')
+        
+        gum format --theme="pink" "You have $(echo "$REPOS" | jq '.count') repositories ✨ in $(gum style --bold --foreground 212 "$PROJECT_NAME")"
+        
+        # Iterate over the repositories and get the meter usage estimate for each one
+        echo $REPOS | jq -c '.value[]'   | while read i; do
+
+            # Get the repository name and id
+            REPO_NAME=$(echo $i | jq -r '.name')
+            REPO_ID=$(echo $i | jq -r '.id')
+
+            gum log "📊 Getting meter usage estimate for $REPO_NAME..."
+
+            # Get the meter usage estimate for the repository
+            ACTIVE_COMMITTERS=$(curl -u :$PAT -X GET \
+            -s \
             -H "Accept: application/json" \
-            "https://dev.azure.com/$ORG_NAME/_apis/projects?api-version=7.1-preview.1" | jq '.')
-    
-    gum format --theme="pink"  "Getting projects in $(gum style --bold --foreground 212 "$ORG_NAME")"
+            "https://advsec.dev.azure.com/$ORG_NAME/$PROJECT_ID/_apis/management/repositories/$REPO_ID/meterUsageEstimate?api-version=7.2-preview.1" | jq '.count')
 
-    rm -f $TEMP_FOLDER/projects.csv
+            echo "$REPO_ID, $REPO_NAME, $ACTIVE_COMMITTERS" >> "$TEMP_FOLDER/${PROJECT_ID}_active_committers_by_repo.csv"
+        done
 
-    echo $PROJECTS | jq -c '.value[]'   | while read i; do
+        # clear
+        gum table < "$TEMP_FOLDER/${PROJECT_ID}_active_committers_by_repo.csv" -w 40,40,20 --height 20 --print --border.foreground 99 --header.foreground 212 | cut -d ',' -f 1
 
-        # Get the project name and id
-        PROJECT_NAME=$(echo $i | jq -r '.name')
-        PROJECT_ID=$(echo $i | jq -r '.id')
- 
-        echo "$PROJECT_ID, $PROJECT_NAME" >> $TEMP_FOLDER/projects.csv
-    done
+   
 
-    # Order csv by project name
-    sort -t ',' -k 2 $TEMP_FOLDER/projects.csv -o $TEMP_FOLDER/projects.csv
+    elif [ "$CHOICE" = "Change organization" ]; then
 
-    # Add header to the csv
-    echo "Project Id, Project Name" | cat - $TEMP_FOLDER/projects.csv > temp && mv temp $TEMP_FOLDER/projects.csv
+        ORG_NAME=$(gum input --header="Enter your Azure DevOps Organization Name" )
 
-    gum format --theme="pink" "👇🏻 Please $(gum style --bold --foreground 212 "choose a project") to get the active committers for its repositories"
-    PROJECT_ID=$(gum table < $TEMP_FOLDER/projects.csv -w 40,40,20 --height 20 | cut -d ',' -f 1)
+        # Replace the organization name in the config file
+        sed -i '' "s/^ORG_NAME=.*/ORG_NAME=${ORG_NAME}/" .env
 
-    PROJECT_NAME=$(gum spin --spinner dot --title "Getting projects info..." --show-output -- curl -u :$PAT -X GET \
-            -H "Accept: application/json" \
-            "https://dev.azure.com/$ORG_NAME/_apis/projects/$PROJECT_ID?api-version=7.1-preview.4" | jq -r '.name')
+        validatePAT
 
-    
-    gum format --theme="pink" "You chose $(gum style --foreground 212 "$PROJECT_NAME") 📁"
-    echo "Repo Id, Name, Active Committers" > "$TEMP_FOLDER/${PROJECT_ID}_active_committers_by_repo.csv"
+    elif [ "$CHOICE" = "Exit" ]; then
 
-    # Get the list of repositories in the project
-   REPOS=$(gum spin --spinner dot --title "Getting repositories..." --show-output -- curl -u :$PAT -X GET \
-            -H "Accept: application/json" \
-            "https://dev.azure.com/$ORG_NAME/$PROJECT_ID/_apis/git/repositories/?api-version=4.1" | jq '.')
-    
-    gum format --theme="pink" "You have $(echo "$REPOS" | jq '.count') repositories ✨ in $(gum style --bold --foreground 212 "$PROJECT_NAME")"
-    
-    # Iterate over the repositories and get the meter usage estimate for each one
-    echo $REPOS | jq -c '.value[]'   | while read i; do
+        gum format --theme="pink" "Goodbye! 👋🏻"
+        break
+    else
 
-        # Get the repository name and id
-        REPO_NAME=$(echo $i | jq -r '.name')
-        REPO_ID=$(echo $i | jq -r '.id')
+        # Just say goodbye
+        gum format --theme="pink" "Wrong choice! Please choose a valid option. Goodbye! 👋🏻"
 
-        gum log "📊 Getting meter usage estimate for $REPO_NAME..."
+    fi
 
-        # Get the meter usage estimate for the repository
-        ACTIVE_COMMITTERS=$(curl -u :$PAT -X GET \
-        -s \
-        -H "Accept: application/json" \
-        "https://advsec.dev.azure.com/$ORG_NAME/$PROJECT_ID/_apis/management/repositories/$REPO_ID/meterUsageEstimate?api-version=7.2-preview.1" | jq '.count')
-
-        echo "$REPO_ID, $REPO_NAME, $ACTIVE_COMMITTERS" >> "$TEMP_FOLDER/${PROJECT_ID}_active_committers_by_repo.csv"
-    done
-
-    # clear
-    gum table < "$TEMP_FOLDER/${PROJECT_ID}_active_committers_by_repo.csv" -w 40,40,20 --height 20 --print --border.foreground 99 --header.foreground 212 | cut -d ',' -f 1
-
-elif [ "$CHOICE" = "Active Committers names" ]; then
-
-    gum format --theme="pink" "You chose $(gum style --bold --foreground 212 "Active Committers names") 📁"
-
-elif [ "$CHOICE" = "Change organization" ]; then
-
-    gum format --theme="pink" "You chose $(gum style --bold --foreground 212 "Change organization") 📁"
-
-else
-
-    # Just say goodbye
-    gum format --theme="pink" "Goodbye! 👋🏻"
-
-fi
+done

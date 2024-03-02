@@ -54,6 +54,9 @@ function check_if_required_variables_are_set() {
     # Check if this variables are already set in the .env file
     if [ -f .env ]; then
         export $(cat .env | xargs)
+
+        # Validate the PAT
+        validatePAT
     fi
 
     # If the variables are not set, ask for them
@@ -69,6 +72,8 @@ function check_if_required_variables_are_set() {
         ORG_NAME=$(gum input --header="Enter your Azure DevOps Organization Name" )
         PAT=$(gum input --header="Enter your Personal Access Token" --password)    
 
+        validatePAT
+
         # Save the info in an .env file
         echo "PAT=$PAT" > .env
         echo "ORG_NAME=$ORG_NAME" >> .env
@@ -80,6 +85,37 @@ function createTmpFolder() {
     if [ ! -d "$TEMP_FOLDER" ]; then
         mkdir -p $TEMP_FOLDER
     fi
+}
+
+function validatePAT() {
+
+    gum log "🔐 Validating the PAT..."
+
+    # Validate the PAT
+    RESPONSE=$(curl -u :$PAT -X GET \
+    -s \
+    -H "Accept: application/json" \
+    "https://dev.azure.com/$ORG_NAME/_apis/projects?api-version=7.1-preview.1")
+
+    # if echo contains "Object moved to.." then the PAT is not valid
+    if [ $(echo $RESPONSE | grep -c "Object moved to") -gt 0 ]; then
+        gum style \
+            --foreground 212 --border-foreground 212 \
+            --align center --width 50 --margin "1 2" --padding "2 4" \
+            'The PAT is not valid. Please try again.'
+
+        PAT=$(gum input --header="Enter your Personal Access Token" --password)    
+        validatePAT
+    fi
+    if [ -z "$COUNT" ]; then
+        gum style \
+        --foreground 212 --border-foreground 212 \
+        --align center --width 50 --margin "1 2" --padding "2 4" \
+        'The PAT is not valid. Please try again.'
+
+        PAT=$(gum input --header="Enter your Personal Access Token" --password)    
+        validatePAT
+    fi    
 }
 
 ############################ Main ###############################################

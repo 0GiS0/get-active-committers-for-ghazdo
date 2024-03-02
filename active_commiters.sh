@@ -97,6 +97,8 @@ function validatePAT() {
     -H "Accept: application/json" \
     "https://dev.azure.com/$ORG_NAME/_apis/projects?api-version=7.1-preview.1")
 
+    # gum log "RESPONSE: $RESPONSE"
+
     # if echo contains "Object moved to.." then the PAT is not valid
     if [ $(echo $RESPONSE | grep -c "Object moved to") -gt 0 ]; then
         gum style \
@@ -107,6 +109,9 @@ function validatePAT() {
         PAT=$(gum input --header="Enter your Personal Access Token" --password)    
         validatePAT
     fi
+
+    COUNT=$(echo $RESPONSE | jq '.count')
+
     if [ -z "$COUNT" ]; then
         gum style \
         --foreground 212 --border-foreground 212 \

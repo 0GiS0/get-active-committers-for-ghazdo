@@ -123,6 +123,21 @@ function validatePAT() {
     fi    
 }
 
+function showTitle() {
+    gum style \
+	--foreground 212 --border-foreground 212 --border double \
+	--align center --width 50 --margin "1 2" --padding "2 4" \
+    "$1" "$2"
+}
+
+function showMessage(){
+    gum style \
+    --foreground 212 --border-foreground 212 \
+    --align center --width 50 --margin "1 2" --padding "2 4" \
+    "$1" 
+
+}
+
 ############################ Main ###############################################
 
 check_if_gum_is_installed
@@ -131,17 +146,11 @@ createTmpFolder
 
 ### Welcome message
 
-gum style \
-	--foreground 212 --border-foreground 212 --border double \
-	--align center --width 50 --margin "1 2" --padding "2 4" \
-	'Welcome to GHAzDO investigation!' 'Check the active committers in your Azure DevOps organization, project or repository.'
+showTitle 'Welcome to GHAzDO investigation!' 'Check the active committers in your Azure DevOps organization, project or repository.'
 
-gum style \
-    --foreground 212 --border-foreground 212 \
-    --align center --width 50 --margin "1 2" --padding "2 4" \
-     "At which level do you want to get the active committers?"
+showMessage "At which level do you want to get the active committers?"
 
-CHOICE=$(gum choose "Organization" "Project" "Repository")
+CHOICE=$(gum choose "Organization" "Project" "Repository" "Active Committers names" "Change organization" "Exit")
 
 if [ "$CHOICE" = "Organization" ]; then
     gum format --theme="pink" "You chose $(gum style --bold --foreground 212 "Organization") 🏢"
@@ -167,7 +176,7 @@ elif [ "$CHOICE" = "Project" ]; then
     # Print how many projects you have in the organization
     gum format --theme="pink"  "You have $(gum style --bold --foreground 212 "$(echo $PROJECTS | jq '.count') projects") ✨ in $(gum style --bold --foreground 212 "$ORG_NAME")"
     
-    echo "Project Id, Project Name, Active Committers" > $TEMP_FOLDER/projects_active_committers.csv
+    echo "Project Id, Project Name, Active Committers, Enable GHAzDO on newly created repositories " > $TEMP_FOLDER/projects_active_committers.csv
 
     echo $PROJECTS > projects.json
 
@@ -180,10 +189,10 @@ elif [ "$CHOICE" = "Project" ]; then
         
         gum log "📊 Getting meter usage estimate for $PROJECT_NAME..."
 
-        # curl -u :$PAT -X GET \
-        # -s \
-        # -H "Accept: application/json" \
-        # "https://advsec.dev.azure.com/$ORG_NAME/$PROJECT_ID/_apis/management/meterUsageEstimate?api-version=7.2-preview.1" > "$TEMP_FOLDER/$PROJECT_NAME.json"
+        curl -u :$PAT -X GET \
+        -s \
+        -H "Accept: application/json" \
+        "https://advsec.dev.azure.com/$ORG_NAME/$PROJECT_ID/_apis/management/meterUsageEstimate?api-version=7.2-preview.1" > "$TEMP_FOLDER/$PROJECT_NAME.json"
 
         # Get the meter usage estimate for the project
         ACTIVE_COMMITTERS=$(curl -u :$PAT -X GET \
@@ -191,13 +200,34 @@ elif [ "$CHOICE" = "Project" ]; then
         -H "Accept: application/json" \
         "https://advsec.dev.azure.com/$ORG_NAME/$PROJECT_ID/_apis/management/meterUsageEstimate?api-version=7.2-preview.1" | jq '.count')
 
-        echo "$PROJECT_ID, $PROJECT_NAME, $ACTIVE_COMMITTERS" >> $TEMP_FOLDER/projects_active_committers.csv
+        curl -u :$PAT -X GET \
+        -s \
+        -H "Accept: application/json" \
+        GET https://advsec.dev.azure.com/$ORG_NAME/$PROJECT_ID/_apis/management/enablement?api-version=7.2-preview.1 > "$TEMP_FOLDER/${PROJECT_NAME}_enablement.json"
+
+        # Check if GHAzDO is enabled
+        ENABLE_ON_CREATE=$(curl -u :$PAT -X GET \
+        -s \
+        -H "Accept: application/json" \
+        GET https://advsec.dev.azure.com/$ORG_NAME/$PROJECT_ID/_apis/management/enablement?api-version=7.2-preview.1 | jq '.enableOnCreate')
+
+        # If true then set ✅, if false then set ❌
+        if [ "$ENABLE_ON_CREATE" = "true" ]; then
+            ENABLE_ON_CREATE="✅"
+        else
+            ENABLE_ON_CREATE="❌"
+        fi
+        
+        echo "$PROJECT_ID, $PROJECT_NAME, $ACTIVE_COMMITTERS, $ENABLE_ON_CREATE" >> $TEMP_FOLDER/projects_active_committers.csv
     done
 
     clear
     gum table < $TEMP_FOLDER/projects_active_committers.csv -w 40,40,20 --height 20 --print --border.foreground 99 --header.foreground 212 | cut -d ',' -f 1
 
-else
+
+
+elif [ "$CHOICE" = "Repository" ]; then
+
     gum format --theme="pink" "You chose $(gum style --bold --foreground 212 "Repository") 📁"
 
     # Get the list of projects in the organization
@@ -262,5 +292,18 @@ else
 
     # clear
     gum table < "$TEMP_FOLDER/${PROJECT_ID}_active_committers_by_repo.csv" -w 40,40,20 --height 20 --print --border.foreground 99 --header.foreground 212 | cut -d ',' -f 1
+
+elif [ "$CHOICE" = "Active Committers names" ]; then
+
+    gum format --theme="pink" "You chose $(gum style --bold --foreground 212 "Active Committers names") 📁"
+
+elif [ "$CHOICE" = "Change organization" ]; then
+
+    gum format --theme="pink" "You chose $(gum style --bold --foreground 212 "Change organization") 📁"
+
+else
+
+    # Just say goodbye
+    gum format --theme="pink" "Goodbye! 👋🏻"
 
 fi

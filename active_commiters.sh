@@ -121,7 +121,9 @@ function validatePAT() {
 
         PAT=$(gum input --header="Enter your Personal Access Token" --password)    
         validatePAT
-    fi    
+    fi
+
+    sed -i '' "s/^PAT=.*/PAT=${PAT}/" .env
 }
 
 function showTitle() {
@@ -146,7 +148,14 @@ function showMenu(){
     --align center --width 50 --margin "1 2" --padding "2 4" \
     'Please choose one of the following options:'
 
-    CHOICE=$(gum choose "Organization" "Project" "Repository" "Change organization" "Exit")
+    CHOICE=$(gum choose "Get the current status of Advanced Security for the organization" "Project" "Repository" "Change organization" "Get commiters used when calculating billing information" "Exit")
+}
+
+function printSelection(){
+    gum style \
+    --foreground 212 --border-foreground 212 \
+    --align center --width 50 --margin "1 2" --padding "2 4" \
+    "You chose $(gum style --bold --foreground 212 "$CHOICE")"
 }
 
 ############################ Main ###############################################
@@ -163,16 +172,31 @@ while true; do
     
     showMenu
 
-    if [ "$CHOICE" = "Organization" ]; then
+    if [ "$CHOICE" = "Get the current status of Advanced Security for the organization" ]; then
         gum format --theme="pink" "You chose $(gum style --bold --foreground 212 "Organization") 🏢"
 
-        # Org Meter Usage Estimate
-        COUNT=$(gum spin --spinner line --title "Investigating $ORG_NAME..." --show-output -- curl -u :$PAT -X GET \
+
+        # Get the current status of Advanced Security for the organization
+        STATUS=$(gum spin --spinner line --title "Getting the current status of Advanced Security for $ORG_NAME..." --show-output -- curl -u :$PAT -X GET \
+                -s \
+                -H "Accept: application/json" \
+                "https://advsec.dev.azure.com/$ORG_NAME/_apis/management/enablement?api-version=7.2-preview.1" | jq '.enableOnCreate')
+
+        
+        if [ "$STATUS" = "true" ]; then
+            gum format --theme="pink" "Advanced Security is $(gum style --bold --foreground 212 "enabled") 🎉 in $(gum style --bold --foreground 212 "$ORG_NAME") for all new repos"
+        else
+            gum format --theme="pink" "Advanced Security is $(gum style --bold --foreground 212 "disabled") 🚫 in $(gum style --bold --foreground 212 "$ORG_NAME") for all new repos"
+        fi
+
+
+        COUNT=$(gum spin --spinner line --title "Checking how many unique active committers $ORG_NAME..." --show-output -- curl -u :$PAT -X GET \
                 -s \
                 -H "Accept: application/json" \
                 "https://advsec.dev.azure.com/$ORG_NAME/_apis/management/meterUsageEstimate?api-version=7.2-preview.1" | jq '.count')
         
-        gum format --theme="pink" "You have $(gum style --bold --foreground 212 "$COUNT active committers") 🎉 in $(gum style --bold --foreground 212 "$ORG_NAME")"
+        gum format --theme="pink" "You have $(gum style --bold --foreground 212 "$COUNT unique active committers") 🎉 in $(gum style --bold --foreground 212 "$ORG_NAME")"
+
 
     elif [ "$CHOICE" = "Project" ]; then
         
@@ -316,6 +340,12 @@ while true; do
 
         validatePAT
 
+    elif [ "$CHOICE" = "Get commiters used when calculating billing information" ]; then
+
+        curl -u :$PAT -X GET \
+        -H "Accept: application/json" \
+        https://advsec.dev.azure.com/$ORG_NAME/_apis/management/meterusage/default?api-version=7.2-preview.1 | jq '.'
+        
     elif [ "$CHOICE" = "Exit" ]; then
 
         gum format --theme="pink" "Goodbye! 👋🏻"

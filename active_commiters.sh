@@ -148,7 +148,7 @@ function showMenu(){
     --align center --width 50 --margin "1 2" --padding "2 4" \
     'Please choose one of the following options:'
 
-    CHOICE=$(gum choose "Get the current status of Advanced Security for the organization" "Project" "Repository" "Change organization" "Get commiters used when calculating billing information" "Exit")
+    CHOICE=$(gum choose "Get the current status of Advanced Security for the organization" "Get the current status of Advanced Security for the projects" "Get the current status of Advanced Security for the repositories in a project" "Change organization" "Get commiters used when calculating billing information" "Exit")
 }
 
 function printSelection(){
@@ -198,7 +198,7 @@ while true; do
         gum format --theme="pink" "You have $(gum style --bold --foreground 212 "$COUNT unique active committers") 🎉 in $(gum style --bold --foreground 212 "$ORG_NAME")"
 
 
-    elif [ "$CHOICE" = "Project" ]; then
+    elif [ "$CHOICE" = "Get the current status of Advanced Security for the projects" ]; then
         
         gum format --theme="pink" "You chose $(gum style --bold --foreground 212 "Project") 📁"
 
@@ -262,7 +262,7 @@ while true; do
         
         
 
-    elif [ "$CHOICE" = "Repository" ]; then
+    elif [ "$CHOICE" = "Get the current status of Advanced Security for the repositories in a project" ]; then
 
         gum format --theme="pink" "You chose $(gum style --bold --foreground 212 "Repository") 📁"
 

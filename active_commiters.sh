@@ -77,7 +77,7 @@ function check_if_required_variables_are_set() {
         echo "PAT=$PAT" > .env
         echo "ORG_NAME=$ORG_NAME" >> .env
 
- 	validatePAT
+        validatePAT
     fi
 
 }

@@ -73,11 +73,11 @@ function check_if_required_variables_are_set() {
         ORG_NAME=$(gum input --header="Enter your Azure DevOps Organization Name" )
         PAT=$(gum input --header="Enter your Personal Access Token" --password)    
 
-        validatePAT
-
         # Save the info in an .env file
         echo "PAT=$PAT" > .env
         echo "ORG_NAME=$ORG_NAME" >> .env
+
+ 	validatePAT
     fi
 
 }

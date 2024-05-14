@@ -123,7 +123,11 @@ function validatePAT() {
         validatePAT
     fi
 
-    sed -i '' "s/^PAT=.*/PAT=${PAT}/" .env
+    SEDOPTION="-i"
+    if [[ "$OSTYPE" == "darwin"* ]]; then
+        SEDOPTION="-i ''"
+    fi
+    sed $SEDOPTION "s/^PAT=.*/PAT=${PAT}/" .env
 }
 
 function showTitle() {
@@ -336,7 +340,11 @@ while true; do
         ORG_NAME=$(gum input --header="Enter your Azure DevOps Organization Name" )
 
         # Replace the organization name in the config file
-        sed -i '' "s/^ORG_NAME=.*/ORG_NAME=${ORG_NAME}/" .env
+        SEDOPTION="-i"
+        if [[ "$OSTYPE" == "darwin"* ]]; then
+            SEDOPTION="-i ''"
+        fi
+        sed $SEDOPTION "s/^ORG_NAME=.*/ORG_NAME=${ORG_NAME}/" .env
 
         validatePAT
 

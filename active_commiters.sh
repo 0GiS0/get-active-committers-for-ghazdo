@@ -73,11 +73,11 @@ function check_if_required_variables_are_set() {
         ORG_NAME=$(gum input --header="Enter your Azure DevOps Organization Name" )
         PAT=$(gum input --header="Enter your Personal Access Token" --password)    
 
-        validatePAT
-
         # Save the info in an .env file
         echo "PAT=$PAT" > .env
         echo "ORG_NAME=$ORG_NAME" >> .env
+
+        validatePAT
     fi
 
 }
@@ -123,7 +123,11 @@ function validatePAT() {
         validatePAT
     fi
 
-    sed -i '' "s/^PAT=.*/PAT=${PAT}/" .env
+    SEDOPTION="-i"
+    if [[ "$OSTYPE" == "darwin"* ]]; then
+        SEDOPTION="-i ''"
+    fi
+    sed $SEDOPTION "s/^PAT=.*/PAT=${PAT}/" .env
 }
 
 function showTitle() {
@@ -336,7 +340,11 @@ while true; do
         ORG_NAME=$(gum input --header="Enter your Azure DevOps Organization Name" )
 
         # Replace the organization name in the config file
-        sed -i '' "s/^ORG_NAME=.*/ORG_NAME=${ORG_NAME}/" .env
+        SEDOPTION="-i"
+        if [[ "$OSTYPE" == "darwin"* ]]; then
+            SEDOPTION="-i ''"
+        fi
+        sed $SEDOPTION "s/^ORG_NAME=.*/ORG_NAME=${ORG_NAME}/" .env
 
         validatePAT
 

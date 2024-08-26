@@ -6,7 +6,8 @@
 # an Azure DevOps organization has in order to evaluate the cost of GHAzDO.    #
 #                                                                              #
 # Change History                                                               #
-# 02/15/2024  Gisela Torres    First version of the script only for GHAzDo     #
+# 02/15/2024  Gisela Torres    First version of the script only for GHAzDo     # 
+#                                                                              #
 #                                                                              #
 #                                                                              #
 ################################################################################
@@ -37,6 +38,7 @@
 set -e
 
 ############################ Variables ##########################################
+API_VERSION="7.2-preview.1"
 TEMP_FOLDER="tmp/ghazdo"
 CHOICE=""
 
@@ -96,7 +98,7 @@ function validatePAT() {
     RESPONSE=$(curl -u :$PAT -X GET \
     -s \
     -H "Accept: application/json" \
-    "https://dev.azure.com/$ORG_NAME/_apis/projects?api-version=7.1-preview.1")
+    "https://dev.azure.com/$ORG_NAME/_apis/projects?api-version=$API_VERSION")
 
     # gum log "RESPONSE: $RESPONSE"
 
@@ -184,7 +186,7 @@ while true; do
         STATUS=$(gum spin --spinner line --title "Getting the current status of Advanced Security for $ORG_NAME..." --show-output -- curl -u :$PAT -X GET \
                 -s \
                 -H "Accept: application/json" \
-                "https://advsec.dev.azure.com/$ORG_NAME/_apis/management/enablement?api-version=7.2-preview.1" | jq '.enableOnCreate')
+                "https://advsec.dev.azure.com/$ORG_NAME/_apis/management/enablement?api-version=$API_VERSION" | jq '.enableOnCreate')
 
         
         if [ "$STATUS" = "true" ]; then
@@ -197,7 +199,7 @@ while true; do
         COUNT=$(gum spin --spinner line --title "Checking how many unique active committers $ORG_NAME..." --show-output -- curl -u :$PAT -X GET \
                 -s \
                 -H "Accept: application/json" \
-                "https://advsec.dev.azure.com/$ORG_NAME/_apis/management/meterUsageEstimate?api-version=7.2-preview.1" | jq '.count')
+                "https://advsec.dev.azure.com/$ORG_NAME/_apis/management/meterUsageEstimate/details?api-version=$API_VERSION" | jq '.count')
         
         gum format --theme="pink" "You have $(gum style --bold --foreground 212 "$COUNT unique active committers") 🎉 in $(gum style --bold --foreground 212 "$ORG_NAME")"
 
@@ -209,7 +211,7 @@ while true; do
         # Get the list of projects in the organization
         PROJECTS=$(gum spin --spinner dot --title "Getting projects in $ORG_NAME..." --show-output -- curl -u :$PAT -X GET \
                 -H "Accept: application/json" \
-                "https://dev.azure.com/$ORG_NAME/_apis/projects?api-version=7.1-preview.1" | jq '.')
+                "https://dev.azure.com/$ORG_NAME/_apis/projects?api-version=$API_VERSION" | jq '.')
 
 
         # Print how many projects you have in the organization
@@ -231,13 +233,13 @@ while true; do
             curl -u :$PAT -X GET \
             -s \
             -H "Accept: application/json" \
-            "https://advsec.dev.azure.com/$ORG_NAME/$PROJECT_ID/_apis/management/meterUsageEstimate?api-version=7.2-preview.1" > "$TEMP_FOLDER/$PROJECT_NAME.json"
+            "https://advsec.dev.azure.com/$ORG_NAME/$PROJECT_ID/_apis/management/meterUsageEstimate/details?api-version=$API_VERSION" > "$TEMP_FOLDER/$PROJECT_NAME.json"
 
             # Get the meter usage estimate for the project
             ACTIVE_COMMITTERS=$(curl -u :$PAT -X GET \
             -s \
             -H "Accept: application/json" \
-            "https://advsec.dev.azure.com/$ORG_NAME/$PROJECT_ID/_apis/management/meterUsageEstimate?api-version=7.2-preview.1" | jq '.count')
+            "https://advsec.dev.azure.com/$ORG_NAME/$PROJECT_ID/_apis/management/meterUsageEstimate/details?api-version=$API_VERSION" | jq '.count')
 
             # curl -u :$PAT -X GET \
             # -s \
@@ -248,7 +250,7 @@ while true; do
             ENABLE_ON_CREATE=$(curl -u :$PAT -X GET \
             -s \
             -H "Accept: application/json" \
-            GET https://advsec.dev.azure.com/$ORG_NAME/$PROJECT_ID/_apis/management/enablement?api-version=7.2-preview.1 | jq '.enableOnCreate')
+            GET https://advsec.dev.azure.com/$ORG_NAME/$PROJECT_ID/_apis/management/enablement?api-version=$API_VERSION | jq '.enableOnCreate')
 
             # If true then set ✅, if false then set ❌
             if [ "$ENABLE_ON_CREATE" = "true" ]; then
@@ -273,7 +275,7 @@ while true; do
         # Get the list of projects in the organization
         PROJECTS=$(gum spin --spinner dot --title "Getting projects in $ORG_NAME..." --show-output -- curl -u :$PAT -X GET \
                 -H "Accept: application/json" \
-                "https://dev.azure.com/$ORG_NAME/_apis/projects?api-version=7.1-preview.1" | jq '.')
+                "https://dev.azure.com/$ORG_NAME/_apis/projects?api-version=$API_VERSION" | jq '.')
         
         gum format --theme="pink"  "Getting projects in $(gum style --bold --foreground 212 "$ORG_NAME")"
 
@@ -299,7 +301,7 @@ while true; do
 
         PROJECT_NAME=$(gum spin --spinner dot --title "Getting projects info..." --show-output -- curl -u :$PAT -X GET \
                 -H "Accept: application/json" \
-                "https://dev.azure.com/$ORG_NAME/_apis/projects/$PROJECT_ID?api-version=7.1-preview.4" | jq -r '.name')
+                "https://dev.azure.com/$ORG_NAME/_apis/projects/$PROJECT_ID?api-version=$API_VERSION" | jq -r '.name')
 
         
         gum format --theme="pink" "You chose $(gum style --foreground 212 "$PROJECT_NAME") 📁"
@@ -325,7 +327,7 @@ while true; do
             ACTIVE_COMMITTERS=$(curl -u :$PAT -X GET \
             -s \
             -H "Accept: application/json" \
-            "https://advsec.dev.azure.com/$ORG_NAME/$PROJECT_ID/_apis/management/repositories/$REPO_ID/meterUsageEstimate?api-version=7.2-preview.1" | jq '.count')
+            "https://advsec.dev.azure.com/$ORG_NAME/$PROJECT_ID/_apis/management/repositories/$REPO_ID/meterUsageEstimate/details?api-version=$API_VERSION" | jq '.count')
 
             echo "$REPO_ID, $REPO_NAME, $ACTIVE_COMMITTERS" >> "$TEMP_FOLDER/${PROJECT_ID}_active_committers_by_repo.csv"
         done
@@ -352,7 +354,7 @@ while true; do
 
         curl -u :$PAT -X GET \
         -H "Accept: application/json" \
-        https://advsec.dev.azure.com/$ORG_NAME/_apis/management/meterusage/default?api-version=7.2-preview.1 | jq '.'
+        https://advsec.dev.azure.com/$ORG_NAME/_apis/management/meterusage/default?api-version=$API_VERSION | jq '.'
         
     elif [ "$CHOICE" = "Exit" ]; then
 
